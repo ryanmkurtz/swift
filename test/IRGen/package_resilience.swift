@@ -10,24 +10,35 @@
 // RUN: %target-swift-frontend -package-name MyPkg -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/Inputs/package_types/resilient_struct.swift
 // RUN: %target-swift-frontend -package-name MyPkg -emit-module -enable-library-evolution -emit-module-path=%t/resilient_enum.swiftmodule -module-name=resilient_enum -I %t %S/Inputs/package_types/resilient_enum.swift
 // RUN: %target-swift-frontend -package-name MyPkg -emit-module -enable-library-evolution -emit-module-path=%t/resilient_class.swiftmodule -module-name=resilient_class -I %t %S/Inputs/package_types/resilient_class.swift
-// RUN: %target-swift-frontend -package-name MyPkg -enable-objc-interop -I %t -emit-ir -enable-library-evolution %t/package_resilience.swift | %FileCheck %t/package_resilience.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-cpu,CHECK-%target-import-type-objc-STABLE-ABI-%target-mandates-stable-abi,CHECK-%target-sdk-name -DINT=i%target-ptrsize -D#MDWORDS=7 -D#MDSIZE32=52 -D#MDSIZE64=80 -D#WORDSIZE=%target-alignment
-// RUN: %target-swift-frontend -package-name MyPkg -disable-objc-interop -I %t -emit-ir -enable-library-evolution %t/package_resilience.swift | %FileCheck %t/package_resilience.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-cpu,CHECK-native-STABLE-ABI-%target-mandates-stable-abi,CHECK-%target-sdk-name -DINT=i%target-ptrsize -D#MDWORDS=4 -D#MDSIZE32=40 -D#MDSIZE64=56 -D#WORDSIZE=%target-alignment
+
+// RUN: %target-swift-frontend -package-name MyPkg -enable-objc-interop -I %t -emit-ir -enable-library-evolution %t/package_resilience.swift > %t/ir-result-objc-interop-enabled.txt
+// RUN: %FileCheck %t/package_resilience.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-cpu,CHECK-%target-import-type-objc-STABLE-ABI-%target-mandates-stable-abi,CHECK-%target-sdk-name -DINT=i%target-ptrsize -D#MDWORDS=7 -D#MDSIZE32=52 -D#MDSIZE64=80 -D#WORDSIZE=%target-alignment < %t/ir-result-objc-interop-enabled.txt
+
+// RUN: %target-swift-frontend -package-name MyPkg -disable-objc-interop -I %t -emit-ir -enable-library-evolution %t/package_resilience.swift > %t/ir-result-objc-interop-disabled.txt
+// RUN: %FileCheck %t/package_resilience.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-cpu,CHECK-native-STABLE-ABI-%target-mandates-stable-abi,CHECK-%target-sdk-name -DINT=i%target-ptrsize -D#MDWORDS=4 -D#MDSIZE32=40 -D#MDSIZE64=56 -D#WORDSIZE=%target-alignment < %t/ir-result-objc-interop-disabled.txt
+
 // RUN: %target-swift-frontend -package-name MyPkg -I %t -emit-ir -enable-library-evolution -O %t/package_resilience.swift -package-name MyPkg
 // REQUIRES: objc_codegen
 // REQUIRES: OS=macosx || OS=ios || OS=tvos || OS=watchos
 // REQUIRES: CPU=x86_64 || CPU=arm64
 
-// CHECK: @"$s18package_resilience26ClassWithResilientPropertyC1p16resilient_struct5PointVvpWvd" = constant [[INT]] {{8|16}}, align [[#WORDSIZE]]
-// CHECK: @"$s18package_resilience26ClassWithResilientPropertyC1s16resilient_struct4SizeVvpWvd" = constant [[INT]] {{32|16}}, align [[#WORDSIZE]]
+// CHECK: @"$s18package_resilience26ClassWithResilientPropertyC1p16resilient_struct5PointVvpWvd" = hidden global [[INT]] 0,
+// CHECK: @"$s18package_resilience26ClassWithResilientPropertyC1s16resilient_struct4SizeVvpWvd" = hidden global [[INT]] 0,
+// CHECK: @"$s18package_resilience26ClassWithResilientPropertyC5colors5Int32VvpWvd" = hidden global i64 0, align 8
+// CHECK: @"$s18package_resilience33ClassWithResilientlySizedPropertyC1r16resilient_struct9RectangleVvpWvd" = hidden global i64 0, align 8
+// CHECK: @"$s18package_resilience33ClassWithResilientlySizedPropertyC5colors5Int32VvpWvd" = hidden global i64 0, align 8
+// CHECK: @"$s18package_resilience30ClassWithIndirectResilientEnumC1s14resilient_enum10FunnyShapeOvpWvd" = hidden global i64 0, align 8
+// CHECK: @"$s18package_resilience30ClassWithIndirectResilientEnumC5colors5Int32VvpWvd" = hidden global i64 0, align 8
 
-// CHECK: @"$s18package_resilience33ClassWithResilientlySizedPropertyC1r16resilient_struct9RectangleVvpWvd" = constant [[INT]] {{8|16}}, align [[#WORDSIZE]]
-// CHECK: @"$s18package_resilience33ClassWithResilientlySizedPropertyC5colors5Int32VvpWvd" = constant [[INT]] 56, align [[#WORDSIZE]]
+// CHECK: @"$s18package_resilience27ClassWithEmptyThenResilientC9resilient0H7_struct0G3IntVvpWvd" = hidden global [[INT]] 0,
+// CHECK: @"$s18package_resilience27ClassWithResilientThenEmptyC9resilient0H7_struct0E3IntVvpWvd" = hidden global [[INT]] 0,
 
+// CHECK: @"$s18package_resilience17MyResilientParentC1sAA0cD6StructVvpWvd" = hidden constant [[INT]] [[#WORDSIZE + WORDSIZE]]
 // CHECK: @"$s18package_resilience17MyResilientParentCMo" = constant [[BOUNDS:{ (i32|i64), i32, i32 }]]
 // CHECK-32-SAME: { [[INT]] [[#MDSIZE32]], i32 3, i32 [[#MDWORDS + 6 + 2]] }, align [[#WORDSIZE]]
 // CHECK-64-SAME: { [[INT]] [[#MDSIZE64]], i32 3, i32 [[#MDWORDS + 3 + 2]] }, align [[#WORDSIZE]]
 
-// CHECK: @"$s18package_resilience16MyResilientChildC5fields5Int32VvpWvd" = constant [[INT]] [[#WORDSIZE + WORDSIZE + 4]], align [[#WORDSIZE]]
+// CHECK: @"$s18package_resilience16MyResilientChildC5fields5Int32VvpWvd" = hidden constant [[INT]] [[#WORDSIZE + WORDSIZE + 4]],
 
 // CHECK: @"$s18package_resilience16MyResilientChildCMo" = {{(protected )?}}{{(dllexport )?}}constant [[BOUNDS]]
 // CHECK-32-SAME: { [[INT]] [[#MDSIZE32 + WORDSIZE + WORDSIZE]], i32 3, i32 [[#MDWORDS + 6 + 3]] }
@@ -41,10 +52,8 @@
 // CHECK-32-SAME: { [[INT]] [[#MDSIZE32 + WORDSIZE + WORDSIZE + WORDSIZE]], i32 3, i32 [[#MDWORDS + 6 + 5]] }
 // CHECK-64-SAME: { [[INT]] [[#MDSIZE64 + WORDSIZE + WORDSIZE + WORDSIZE]], i32 3, i32 [[#MDWORDS + 3 + 5]] }
 
-// CHECK: @"$s18package_resilience27ClassWithEmptyThenResilientC5emptyAA0E0VvpWvd" = constant [[INT]] 0,
-// CHECK: @"$s18package_resilience27ClassWithEmptyThenResilientC9resilient0H7_struct0G3IntVvpWvd" = constant [[INT]] [[#WORDSIZE + WORDSIZE]], align [[#WORDSIZE]]
-// CHECK: @"$s18package_resilience27ClassWithResilientThenEmptyC9resilient0H7_struct0E3IntVvpWvd" = constant [[INT]] [[#WORDSIZE + WORDSIZE]], align [[#WORDSIZE]]
-// CHECK: @"$s18package_resilience27ClassWithResilientThenEmptyC5emptyAA0G0VvpWvd" = constant [[INT]] 0,
+// CHECK: @"$s18package_resilience27ClassWithEmptyThenResilientC5emptyAA0E0VvpWvd" = hidden constant [[INT]] 0,
+// CHECK: @"$s18package_resilience27ClassWithResilientThenEmptyC5emptyAA0G0VvpWvd" = hidden constant [[INT]] 0,
 
 import resilient_class
 import resilient_struct
@@ -172,24 +181,27 @@ package class ClassWithResilientThenEmpty {
 // ClassWithResilientProperty.color getter
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @"$s18package_resilience26ClassWithResilientPropertyC5colors5Int32Vvg"(ptr swiftself %0)
-// CHECK:      [[FIELD_ADDR:%.*]] = getelementptr inbounds %T18package_resilience26ClassWithResilientPropertyC, ptr %0,
-// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_ADDR]], i32 0, i32 0
-// CHECK-NEXT: [[FIELD_VALUE:%.*]] = load i32, ptr [[FIELD_PAYLOAD]]
-// CHECK:      ret i32 [[FIELD_VALUE]]
+// CHECK:      [[OFFSET:%.*]] = load [[INT]], ptr  @"$s18package_resilience26ClassWithResilientPropertyC5colors5Int32VvpWvd",
+// CHECK-NEXT: [[FIELD_ADDR:%.*]] = getelementptr inbounds i8, ptr %0, [[INT]] [[OFFSET]]
+// CHECK-NEXT: [[FIELD_VALUE:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_ADDR]], i32 0, i32 0
+// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = load i32, ptr [[FIELD_VALUE]]
+// CHECK:      ret i32 [[FIELD_PAYLOAD]]
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @"$s18package_resilience33ClassWithResilientlySizedPropertyC5colors5Int32Vvg"(ptr swiftself %0)
-// CHECK:      [[FIELD_ADDR:%.*]] = getelementptr inbounds %T18package_resilience33ClassWithResilientlySizedPropertyC, ptr %0,
-// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_ADDR]], i32 0, i32 0
-// CHECK-NEXT: [[FIELD_VALUE:%.*]] = load i32, ptr [[FIELD_PAYLOAD]]
-// CHECK:      ret i32 [[FIELD_VALUE]]
+// CHECK:      [[OFFSET:%.*]] = load [[INT]], ptr @"$s18package_resilience33ClassWithResilientlySizedPropertyC5colors5Int32VvpWvd",
+// CHECK-NEXT: [[FIELD_ADDR:%.*]] = getelementptr inbounds i8, ptr %0, [[INT]] [[OFFSET]]
+// CHECK-NEXT: [[FIELD_VALUE:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_ADDR]], i32 0, i32 0
+// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = load i32, ptr [[FIELD_VALUE]]
+// CHECK:      ret i32 [[FIELD_PAYLOAD]]
 
 // ClassWithIndirectResilientEnum.color getter
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @"$s18package_resilience30ClassWithIndirectResilientEnumC5colors5Int32Vvg"(ptr swiftself %0)
-// CHECK:      [[FIELD_PTR:%.*]] = getelementptr inbounds %T18package_resilience30ClassWithIndirectResilientEnumC, ptr %0, i32 0, i32 2
-// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_PTR]], i32 0, i32 0
-// CHECK-NEXT: [[FIELD_VALUE:%.*]] = load i32, ptr [[FIELD_PAYLOAD]]
-// CHECK-NEXT: ret i32 [[FIELD_VALUE]]
+// CHECK:      [[OFFSET:%.*]] = load [[INT]], ptr @"$s18package_resilience30ClassWithIndirectResilientEnumC5colors5Int32VvpWvd",
+// CHECK-NEXT: [[FIELD_PTR:%.*]] = getelementptr inbounds i8, ptr %0, [[INT]] [[OFFSET]]
+// CHECK-NEXT: [[FIELD_VALUE:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[FIELD_PTR]], i32 0, i32 0
+// CHECK-NEXT: [[FIELD_PAYLOAD:%.*]] = load i32, ptr [[FIELD_VALUE]]
+// CHECK-NEXT: ret i32 [[FIELD_PAYLOAD]]
 
 // Make sure that MemoryLayout always emits constants
 
@@ -214,29 +226,43 @@ package class ClassWithResilientThenEmpty {
 
 // CHECK-LABEL: define{{.*}} swiftcc {{i32|i64}} @"$s18package_resilience38memoryLayoutDotSizeWithResilientStructSiyF"()
 public func memoryLayoutDotSizeWithResilientStruct() -> Int {
-  // CHECK: ret [[INT]] [[#WORDSIZE + WORDSIZE]]
+// CHECK: [[FIELD_VALUE:%.*]] = load ptr, ptr {{.*}},
+// CHECK-NEXT: [[FIELD_PTR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[FIELD_VALUE]],
+// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[FIELD_PTR]],
+// CHECK-NEXT: ret [[INT]] [[SIZE]]
   return MemoryLayout<Size>.size
 }
 
 // CHECK-LABEL: define{{.*}} swiftcc {{i32|i64}} @"$s18package_resilience40memoryLayoutDotStrideWithResilientStructSiyF"()
 public func memoryLayoutDotStrideWithResilientStruct() -> Int {
-  // CHECK: ret [[INT]] [[#WORDSIZE + WORDSIZE]]
+// CHECK: [[FIELD_VALUE:%.*]] = load ptr, ptr {{.*}},
+// CHECK-NEXT: [[FIELD_PTR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[FIELD_VALUE]],
+// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[FIELD_PTR]],
+// CHECK-NEXT: ret [[INT]] [[SIZE]]
   return MemoryLayout<Size>.size
 }
 
 // CHECK-LABEL: define{{.*}} swiftcc {{i32|i64}} @"$s18package_resilience43memoryLayoutDotAlignmentWithResilientStructSiyF"()
 public func memoryLayoutDotAlignmentWithResilientStruct() -> Int {
-  // CHECK: ret [[INT]] [[#WORDSIZE]]
+// CHECK: [[FIELD_VALUE:%.*]] = load ptr, ptr {{.*}},
+// CHECK-NEXT: [[FIELD_PTR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[FIELD_VALUE]],
+// CHECK-NEXT:  [[FIELD_FLAGS:%.*]] = load i32, ptr [[FIELD_PTR]],
+// CHECK-NEXT:  [[FIELD_ADDR:%.*]] = zext i32 [[FIELD_FLAGS]] to [[INT]]
+// CHECK-NEXT:  [[FIELD_MASK:%.*]] = and [[INT]] [[FIELD_ADDR]], 255
+// CHECK-NEXT:  [[FIELD_PAYLOAD:%.*]] = add [[INT]] [[FIELD_MASK]], 1
+// CHECK-NEXT:  ret [[INT]] [[FIELD_PAYLOAD]]
   return MemoryLayout<Size>.alignment
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[BOUNDS:{ (i32|i64), (i32|i64), i8 }]] @"$s18package_resilience31constructResilientEnumNoPayload14resilient_enum6MediumOyF"
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc [[BOUNDS:{ (i32|i64), (i32|i64), i8 }]] @"$s18package_resilience31constructResilientEnumNoPayload14resilient_enum6MediumOyF"
 package func constructResilientEnumNoPayload() -> Medium {
-  // CHECK: ret [[BOUNDS]] { {{i32|i64}} 0, {{i32|i64}} 0, i8 2 }
+// CHECK:       [[FIELD_TAG:%.*]] = load ptr, ptr {{.*}},
+// CHECK-NEXT:  call void [[FIELD_TAG]](ptr noalias
+// CHECK-NEXT:  ret void
   return Medium.Paper
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[BOUNDS:{ (i32|i64), (i32|i64), i8 }]] @"$s18package_resilience39constructExhaustiveWithResilientMembers14resilient_enum11SimpleShapeOyF"() #0 {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc [[BOUNDS:{ (i32|i64), (i32|i64), i8 }]] @"$s18package_resilience39constructExhaustiveWithResilientMembers14resilient_enum11SimpleShapeOyF"() #0 {
 package func constructExhaustiveWithResilientMembers() -> SimpleShape {
   // CHECK: ret [[BOUNDS]] { {{i32|i64}} 0, {{i32|i64}} 0, i8 1 }
   return .KleinBottle
@@ -245,20 +271,18 @@ package func constructExhaustiveWithResilientMembers() -> SimpleShape {
 // ClassWithResilientProperty metadata accessor
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.metadata_response @"$s18package_resilience26ClassWithResilientPropertyCMa"(
-// CHECK-objc:      [[METADATA:%.*]] = call ptr {{.*}}@"$s18package_resilience26ClassWithResilientPropertyCMf"{{.*}}
-// CHECK-objc-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[METADATA]], 0
-// CHECK-objc-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], i64 0, 1
-// CHECK-objc-NEXT: ret %swift.metadata_response [[T1]]
+// CHECK-objc: [[T0:%.*]] = load ptr, ptr @"$s18package_resilience26ClassWithResilientPropertyCMl",
+// CHECK-objc-NEXT: [[T1:%.*]] = icmp eq ptr [[T0]], null
+// CHECK-objc-NEXT: br i1 [[T1]], label %cacheIsNull, label %cont
 
 // CHECK-native: ret %swift.metadata_response
 
 // ClassWithResilientlySizedProperty metadata accessor
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.metadata_response @"$s18package_resilience33ClassWithResilientlySizedPropertyCMa"(
-// CHECK-objc:      [[METADATA:%.*]] = call ptr {{.*}}@"$s18package_resilience33ClassWithResilientlySizedPropertyCMf"{{.*}}
-// CHECK-objc-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[METADATA]], 0
-// CHECK-objc-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], i64 0, 1
-// CHECK-objc-NEXT: ret %swift.metadata_response [[T1]]
+// CHECK-objc: [[T0:%.*]] = load ptr, ptr @"$s18package_resilience33ClassWithResilientlySizedPropertyCMl",
+// CHECK-objc-NEXT: [[T1:%.*]] = icmp eq ptr [[T0]], null
+// CHECK-objc-NEXT: br i1 [[T1]], label %cacheIsNull, label %cont
 
 // CHECK-native: ret %swift.metadata_response
 
